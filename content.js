@@ -1,6 +1,6 @@
 
-const allTags = document.querySelector("div.pagination").querySelectorAll("*");
-const nextButton = allTags[allTags.length - 1];
+const allTags = document.querySelector("div.pagination")?.querySelectorAll("*");
+const nextButton = allTags ? allTags[allTags.length - 1] : null;
 
 const url = window.location.href.split('?page')[0];
 
@@ -10,23 +10,24 @@ const start = () => {
     window.location.href = now_url;
 }
 
-const scrap = async() => {
+const scrapListPage = async () => {
 
     let data = await getStorageData("data");
-    if(!data)  data = [];
+    if (!data) data = [];
 
     const container = document.getElementById("all_votes");
     if (container) {
         const tbody = container.querySelector("table tbody");
         if (tbody) {
             const rows = tbody.querySelectorAll("tr");
-            rows.forEach(tr => {
+            rows.forEach((tr) => {
 
                 const tds = tr.querySelectorAll("td");
                 const td = tds[2];
 
                 let bookTitle = td.querySelector("a.bookTitle")?.textContent.trim();
                 let authorName = td.querySelector(".authorName span")?.textContent.trim();
+                let bookLink = td.querySelector("a.bookTitle")?.getAttribute("href");
                 let score = null;
                 let votes = null;
 
@@ -47,24 +48,85 @@ const scrap = async() => {
                     });
                 }
 
-                data.push({ 'bookTitle': bookTitle, 'authorName': authorName, 'score': score, 'votes': votes });
+                bookLink = `https://www.goodreads.com${bookLink}`;
+
+                data.push({ 'bookLink': bookLink, 'bookTitle': bookTitle, 'authorName': authorName, 'score': score, 'votes': votes });
             });
         } else {
             console.log("No <tbody> found inside the table.");
         }
-        chrome.storage.local.set({ buttonState: 'running', data });
+
+        const buttonState = await getStorageData("buttonState");
+        if(buttonState !== 'start') {
+            chrome.storage.local.set({data, whichPage: 'listPage' });
+        }
+        
     } else {
         console.log("Div with id 'all_votes' not found.");
     }
 
     console.log('scraped!');
 
-    if (nextButton.classList.contains('disabled')) {
+    if (nextButton === null || nextButton.classList.contains('disabled')) {
         console.log('data ==> ', data);
-        downloadCSV(data);
-        chrome.storage.local.set({ buttonState: 'Start', data: [] });
+        chrome.storage.local.set({ buttonState: 'running', data, whichPage: 'detailPage' });
+        window.location.href = data[0].bookLink;
     } else {
         nextButton.click();
+    }
+}
+
+const scrapDetailPage = async () => {
+    const datas = await getStorageData("data");
+    const currentURL = window.location.href;
+
+    const foundIndex = datas.findIndex(data => data.bookLink === currentURL);
+
+    const button = document.querySelector('button[aria-label="Book details and editions"]');
+    await delay(1000);
+    button?.click();
+    await delay(3000);
+
+    const editionDetails = document.querySelector('.EditionDetails');
+    const descItems = editionDetails?.querySelectorAll('.DescListItem');
+    let publishedDate = '';
+    let isbn = '';
+    let isbn10 = '';
+
+    if(descItems) {
+        descItems.forEach(item => {
+        const label = item.querySelector('dt')?.textContent.trim();
+        const value = item.querySelector('[data-testid="contentContainer"]')?.textContent.trim();
+
+        if (label === "Published") {
+            publishedDate = value.split("by")[0].trim();
+        } else if (label === "ISBN") {
+            const isbnMatch = value.match(/\b\d{13}\b/);
+            if (isbnMatch) {
+                isbn = `'${String(isbnMatch[0].trim())}'`;
+            }
+
+            // Match any 10-character alphanumeric string (ending in digit or X/x)
+            const isbn10Match = value.match(/\b\d{9}[0-9Xx]\b/);
+            if (isbn10Match) {
+                isbn10 = `'${String(isbn10Match[0].toUpperCase().trim())}'`
+            }
+        }
+    });
+    }
+
+    datas[foundIndex] = { ...datas[foundIndex], publishedDate, isbn, isbn10 };
+
+    if (foundIndex === datas.length - 1) {
+        console.log('datas ===> ', datas);
+        downloadCSV(datas);
+        chrome.storage.local.set({ buttonState: 'Start', data: [], whichPage: 'listPage' });
+    } else {
+        const buttonState = await getStorageData("buttonState");
+        if(buttonState !== 'start') {
+            chrome.storage.local.set({ data: datas, whichPage: 'detailPage' });
+            window.location.href = datas[foundIndex + 1].bookLink;
+        }
     }
 }
 
@@ -106,11 +168,16 @@ function getStorageData(key) {
     });
 }
 
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+chrome.runtime.onMessage.addListener(async (message, sender, sendResponse) => {
     if (message.action === "start") {
         start();
     } else if (message.action === "scraping") {
         scrap();
+    } else if (message.action === 'download') {
+        console.log('downloading...');
+        const datas = await getStorageData("data");
+        chrome.storage.local.set({'data': []});
+        downloadCSV(datas);
     }
 });
 
@@ -120,6 +187,9 @@ const delay = (ms) => {
 
 chrome.storage.local.get("buttonState", (result) => {
     if (result.buttonState === "running") {
-        scrap();
+        chrome.storage.local.get("whichPage", (result) => {
+            if (result.whichPage === 'listPage') scrapListPage();
+            else scrapDetailPage()
+        })
     }
 })
