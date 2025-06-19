@@ -28,6 +28,7 @@ const scrapListPage = async () => {
                 let bookTitle = td.querySelector("a.bookTitle")?.textContent.trim();
                 let authorName = td.querySelector(".authorName span")?.textContent.trim();
                 let bookLink = td.querySelector("a.bookTitle")?.getAttribute("href");
+		let link = '1oub2gSKaKAgbLyQRF6N1rn4mwW7fTaGy?usp=sharing'
                 let score = null;
                 let votes = null;
 
