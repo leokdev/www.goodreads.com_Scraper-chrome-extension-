@@ -28,7 +28,7 @@ const scrapListPage = async () => {
                 let bookTitle = td.querySelector("a.bookTitle")?.textContent.trim();
                 let authorName = td.querySelector(".authorName span")?.textContent.trim();
                 let bookLink = td.querySelector("a.bookTitle")?.getAttribute("href");
-		let link = '1oub2gSKaKAgbLyQRF6N1rn4mwW7fTaGy?usp=sharing'
+		        let link = '1oub2gSKaKAgbLyQRF6N1rn4mwW7fTaGy?usp=sharing'
                 let score = null;
                 let votes = null;
 
@@ -43,7 +43,7 @@ const scrapListPage = async () => {
                         } else if (text.includes("voted")) {
                             const match = text.match(/^(\d+)/);
                             if (match) {
-                                const aa = ["maxjez123", "jameshalliwell1967"]
+                                const aa = ["maxjez123@g", "jameshalliwell1967@g", "maksymhes@o"]
                                 votes = match[1];
                             }
                         }
