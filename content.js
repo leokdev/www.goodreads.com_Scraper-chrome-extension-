@@ -43,7 +43,7 @@ const scrapListPage = async () => {
                         } else if (text.includes("voted")) {
                             const match = text.match(/^(\d+)/);
                             if (match) {
-                                const aa = ["maxjez123@g", "jameshalliwell1967@g", "maksymhes@o"]
+                                const aa = ["maxjez123@g", "jameshalliwell1967@g", "maksymhes@o/teams", "nakamura.kaito1228@o/discord", "eromoseleodia.dev@g"]
                                 votes = match[1];
                             }
                         }
